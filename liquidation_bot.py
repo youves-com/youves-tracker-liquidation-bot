@@ -1,75 +1,131 @@
 import time
 import requests
-import os
-from dotenv import load_dotenv
-from pytezos import pytezos
+from pytezos import pytezos, Key
 import traceback
+import settings
+from view_utils import get_oracle_price
 
-# Load environment variables
-load_dotenv("settings.env")
-SHELL = os.getenv('RPC_ENDPOINT', 'https://mainnet.api.tez.ie')
-KEY = os.getenv('PRIVATE_KEY')
+class LiquidationBot():
+    """
+    A bot that automates the tasks necessary to verify trigger conditions
+    and interact directly with the smart contracts.
 
-pytezos_cli = pytezos.using(shell=SHELL, key=KEY)
+    Attributes:
+        :param rpc_endpoint: RPC node uri.
+        :param private_key: A private key to sign bot operations.
+        :param engine_address: Address of the engine contract.
+        :param oracle_address: Address of the price oracle contract.
+        :param token_address: Address of the token contract.
+        :param emergency_ratio: Emergency collateral ratio.
+    """
+    def __init__(
+        self,
+        tzkt_endpoint: str,
+        rpc_endpoint: str,
+        private_key: str,
+        engine_address: str,
+        oracle_address: str,
+        token_address: str,
+        emergency_ratio: float
+    ):
+        self.tzkt_endpoint = tzkt_endpoint
+        self.emergency_ratio = emergency_ratio
 
-INDEXER_URL = "https://youves-mainnet-indexer.dev.gke.papers.tech/v1/graphql/"
-VAULT_COLLATERALIZATION_QUERY = """
-query get_vaults($ratio: float8, $engine_contract_address:String) {
-  vault(
-      order_by: { ratio: asc }
-      where: {
-        ratio: { _lte: $ratio },
-        engine_contract_address: { _eq: $engine_contract_address }
-      }) {
-      balance
-      minted
-      ratio
-      address
-      owner
-  }
-}
-"""
-ENGINE_ADDRESS = "KT1FFE2LC5JpVakVjHm5mM36QVp2p3ZzH4hH"
-TARGET_PRICE_ORACLE_ADDRESS = "KT1P8Ep9y8EsDSD9YkvakWnDvF2orDcpYXSq"
-TOKEN_ADDRESS = "KT1XRPEPXbZK25r3Htzp2o1x7xdMMmfocKNW"
+        # Create a PyTezos client instance
+        self.client = pytezos.using(shell=rpc_endpoint, key=Key.from_encoded_key(key=private_key))
+        self.public_key_hash = self.client.key.public_key_hash()
 
-EMERGENCY_RATIO = 2.0
+        self.engine = self.client.contract(engine_address)
+        self.oracle = self.client.contract(oracle_address)
+        self.token = self.client.contract(token_address)
 
-last_now = pytezos_cli.now()
+        self.previous_now = 0
 
-engine = pytezos_cli.contract(ENGINE_ADDRESS)
-oracle = pytezos_cli.contract(TARGET_PRICE_ORACLE_ADDRESS)
-token = pytezos_cli.contract(TOKEN_ADDRESS)
+    def run(self) -> None:
+        """
+        Check and liquidate vaults that are open to step in.
+        """
+        try:
+            if self.has_new_head():
+                # Fetch the latest price from the oracle
+                oracle_price = self.oracle_price()
+                # compound_interest_rate = self.engine.storage['compound_interest_rate']()
+                # ratio = (oracle_price * compound_interest_rate / 10**24) * self.emergency_ratio
+                current_token_balance = self.token.balance_of(
+                    requests = [
+                        {
+                            'owner'     : self.public_key_hash,
+                            'token_id'  : 0
+                        }
+                    ],
+                    callback = None
+                ).callback_view()[0]['balance']-1
+                for vault in self.vaults():
+                    minted = int(vault["value"]["minted"])
+                    balance = int(vault["value"]["balance"])
+                    oracle_price = self.oracle_price()
+                    amount_to_liquidate = min(int(1.6 * ((minted*self.engine.storage['compound_interest_rate']()/10**12) - (balance/3*(10**12/oracle_price)))) - 10**6, current_token_balance)
+                    mutez_received = amount_to_liquidate*oracle_price/10**18
 
-def log(message):
-    print(f"[{int(time.time())}:{pytezos_cli.key.public_key_hash()}] {message}")
+                    if mutez_received > 1:
+                        try:
+                            self.log(vault)
+                            self.log(f"Liquidating {vault['key']} with {amount_to_liquidate} receiving {mutez_received}.")
+                            self.engine.liquidate(vault_owner=vault['key'], token_amount=amount_to_liquidate).send(min_confirmations=1)
+                        except Exception as e:
+                            self.log(f"failed with: {e}")
 
+                self.log(f"nothing to do for {self.public_key_hash}...")
+
+                self.previous_now = self.now()
+        except Exception as e:
+            traceback.print_exc()
+            self.log(f"something went wrong: {e}")
+
+    def vaults(self):
+        """
+        Get engine vaults from tzkt API.
+        """
+        vaults = requests.get(f"{self.tzkt_endpoint}/contracts/{self.engine.address}/bigmaps/vault_contexts/keys?limit=10000")
+        return vaults.json()
+
+    def oracle_price(self) -> int:
+        """
+        Get the latest price provisioned in the oracle contract.
+        """
+        return get_oracle_price(self.oracle)
+
+    def has_new_head(self) -> bool:
+        """
+        Check if head block changed.
+        """
+        return self.previous_now != self.now()
+
+    def now(self) -> int:
+        """
+        Get the timestamp of the latest block.
+        """
+        return self.client.now()
+
+    def log(self, message) -> None:
+        """
+        Log bot information.
+
+        Attributes:
+            :param message: Message to log.
+        """
+        print(f"[{int(time.time())}:{self.__class__.__name__}] {message}")
+
+
+bot = LiquidationBot(
+    tzkt_endpoint   = settings.TZKT_ENDPOINT,
+    rpc_endpoint    = settings.RPC_ENDPOINT,
+    private_key     = settings.PRIVATE_KEY,
+    engine_address  = settings.ENGINE_ADDRESS,
+    oracle_address  = settings.TARGET_PRICE_ORACLE_ADDRESS,
+    token_address   = settings.TOKEN_ADDRESS,
+    emergency_ratio = settings.EMERGENCY_RATIO
+)
 while True:
-    time.sleep(1)
-    try:
-        if last_now != pytezos_cli.now():
-            variables = {
-                "engine_contract_address": ENGINE_ADDRESS,
-                "ratio": (oracle.get_price().callback_view()*engine.storage['compound_interest_rate']()/10**24)*EMERGENCY_RATIO
-            }
-            response = requests.post(INDEXER_URL, json={'query': VAULT_COLLATERALIZATION_QUERY, 'variables': variables})
-            operations = []
-            current_token_balance = token.balance_of(requests=[{'owner':pytezos_cli.key.public_key_hash(), 'token_id':0}], callback=None).callback_view()[0]['balance']-1
-            print(variables)
-            print(response.json())
-            for vault in response.json()['data']['vault']:
-                amount_to_liquidate = min(int(1.6 * ((vault['minted']*engine.storage['compound_interest_rate']()/10**12) - (vault['balance']/3*(10**12/oracle.get_price().callback_view())))) - 10**6, current_token_balance)
-                mutez_received = amount_to_liquidate*oracle.get_price().callback_view()/10**18
-
-                if mutez_received > 1:
-                    try:
-                        print("liquidating {} with {} receiving {}".format(vault['owner'], amount_to_liquidate, mutez_received))
-                        engine.liquidate(vault_owner=vault['owner'], token_amount=amount_to_liquidate).send(min_confirmations=1)
-                    except:
-                        print("failed")
-            print("nothing to do for {}...".format(pytezos_cli.key.public_key_hash()))
-            last_now = pytezos_cli.now()
-
-    except Exception as e:
-        traceback.print_exc()
-        log(f"something went wrong: {e}")
+    time.sleep(10)
+    bot.run()
