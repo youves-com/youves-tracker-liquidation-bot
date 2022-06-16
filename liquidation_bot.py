@@ -62,7 +62,7 @@ class LiquidationBot():
                     callback = None
                 ).callback_view()[0]['balance']-1
 
-                # Compute engine ratio
+                # Compute engine ratio (This will change in engine v3)
                 compound_interest_rate = self.engine.storage['compound_interest_rate']()
                 engine_ratio = (oracle_price * compound_interest_rate / 10**24) * self.emergency_ratio
 
@@ -74,7 +74,8 @@ class LiquidationBot():
                     if (minted <= 0 or float(balance / minted) > engine_ratio):
                         continue
 
-                    amount_to_liquidate = min(int(1.6 * ((minted*self.engine.storage['compound_interest_rate']()/10**12) - (balance/3*(10**12/oracle_price)))) - 10**6, current_token_balance)
+                    # Compute the amount to be liquidated
+                    amount_to_liquidate = min(int(1.6 * ((minted*compound_interest_rate/10**12) - (balance/3*(10**12/oracle_price)))) - 10**6, current_token_balance)
                     mutez_to_receive = amount_to_liquidate * (oracle_price / (10**18))
 
                     if mutez_to_receive > 1:
@@ -86,6 +87,7 @@ class LiquidationBot():
 
                 # Set a new high water mark
                 self.previous_now = self.now()
+
         except Exception as ex:
             self.log(f"Something went wrong: {ex}.")
             if settings.DEBUG:
