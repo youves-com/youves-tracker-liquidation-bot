@@ -1,9 +1,17 @@
-import time
-import requests
-from pytezos import pytezos, Key
 import traceback
+import requests
+import logging
+from pytezos import pytezos, Key
 import settings
 from view_utils import get_oracle_price
+
+# Prepare logger
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 PRICE_PRECISION_FACTOR = 10**6
 LIQUIDATION_REWARD_BITSHIFT = 3
@@ -61,11 +69,13 @@ class LiquidationBot():
                 # Fetch the latest price from the oracle
                 oracle_price = self.oracle_price()
 
+                compound_interest_rate = self.engine.storage['compound_interest_rate']()
+
+                did_any_liquidation = False
                 for vault in self.vaults():
                     minted = int(vault["value"]["minted"])
                     balance = int(vault["value"]["balance"])
                     is_being_liquidated = vault["value"]["is_being_liquidated"]
-                    compound_interest_rate = self.engine.storage['compound_interest_rate']()
 
                     # Compute engine ratio (This will change in engine v3)
                     engine_ratio = (oracle_price * compound_interest_rate / 10**24) * self.emergency_ratio
@@ -85,6 +95,11 @@ class LiquidationBot():
                         self.log(f"Amount being liquidated: {amount_to_liquidate / self.token_precison_factor} {self.token_metadata.symbol}")
                         self.log(f"Liquidation reward: {tez_to_receive} ꜩ")
                         self.liquidate_vault(vault["key"], amount_to_liquidate)
+                        print()
+                        did_any_liquidation = True
+
+                if not did_any_liquidation:
+                    self.log("Nothing to do...")
 
                 # Set a new high water mark
                 self.previous_now = self.now()
@@ -159,7 +174,7 @@ class LiquidationBot():
         Attributes:
             :param message: Message to log.
         """
-        print(f"[{int(time.time())}:{self.__class__.__name__}] {message}")
+        logger.info("%s:%s\t%s", self.engine.address, self.token_metadata.symbol, message)
 
 
 bot = LiquidationBot(
