@@ -20,6 +20,12 @@ The bot configuration is included in file [settings.env](./settings.env). You sh
 |------------|:-------:|:------------|
 | **`RPC_ENDPOINT`** | *`https://mainnet.api.tez.ie`* | RPC endpoint to be used by the bot. |
 | **`PRIVATE_KEY`** | *`edsk...`*                      | Private key to be used to sign the liquidation operations. |
+| **`TZKT_ENDPOINT`** | *`https://api.tzkt.io/v1`* | TZKT API endpoint to be used by the bot. |
+| **`ENGINE_ADDRESS`** | *`KT1FFE2LC5JpVakVjHm5mM36QVp2p3ZzH4hH`* | Address of the engine contract. |
+| **`TARGET_PRICE_ORACLE_ADDRESS`** | *`KT1C5zJ62ZY3sm88XSznawP9ExHogzGUuqDr`* | Address of the price oracle contract. |
+| **`TOKEN_ADDRESS`** | *`KT1XRPEPXbZK25r3Htzp2o1x7xdMMmfocKNW`* | Address of the token contract. |
+| **`EMERGENCY_RATIO`** | *`0.2`* | [Emergency collateral ratio](https://docs.youves.com/syntheticAssets/stableTokens/collateralManagement/Collateral-Management-Details). |
+| **`DEBUG`** | *`True`*                      | Flag to enable stack straces to appear in the logs. |
 
 ## Run the bot
 
