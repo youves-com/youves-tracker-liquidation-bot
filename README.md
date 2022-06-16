@@ -25,6 +25,7 @@ The bot configuration is included in file [settings.env](./settings.env). You sh
 | **`TARGET_PRICE_ORACLE_ADDRESS`** | *`KT1C5zJ62ZY3sm88XSznawP9ExHogzGUuqDr`* | Address of the price oracle contract. |
 | **`TOKEN_ADDRESS`** | *`KT1XRPEPXbZK25r3Htzp2o1x7xdMMmfocKNW`* | Address of the token contract. |
 | **`EMERGENCY_RATIO`** | *`0.2`* | [Emergency collateral ratio](https://docs.youves.com/syntheticAssets/stableTokens/collateralManagement/Collateral-Management-Details). |
+| **`MINIMUM_REWARD`** | *`0.05`* | Minimum expected reward from liquidations. |
 | **`DEBUG`** | *`True`*                      | Flag to enable stack straces to appear in the logs. |
 
 ## Run the bot
