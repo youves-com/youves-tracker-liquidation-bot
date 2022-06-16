@@ -29,6 +29,7 @@ DEBUG=True python liquidation_bot.py
 | **`TZKT_ENDPOINT`** | *`https://api.tzkt.io/v1`* | TZKT API endpoint to be used by the bot. |
 | **`ENGINE_ADDRESS`** | *`KT1FFE2LC5JpVakVjHm5mM36QVp2p3ZzH4hH`* | Address of the engine contract. |
 | **`TARGET_PRICE_ORACLE_ADDRESS`** | *`KT1C5zJ62ZY3sm88XSznawP9ExHogzGUuqDr`* | Address of the price oracle contract. |
+| **`TOKEN_DECIMALS`** | *`12`* | Position of the decimal point in token balances. |
 | **`EMERGENCY_RATIO`** | *`0.2`* | [Emergency collateral ratio](https://docs.youves.com/syntheticAssets/stableTokens/collateralManagement/Collateral-Management-Details). |
 | **`MINIMUM_REWARD`** | *`0.05`* | Minimum expected reward from liquidations (in ꜩ). |
 | **`DEBUG`** | *`True`*                      | Flag to enable stack straces to appear in the logs. |

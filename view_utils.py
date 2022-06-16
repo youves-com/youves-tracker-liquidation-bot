@@ -84,10 +84,15 @@ def get_oracle_price(oracle: ContractInterface) -> int:
     Attributes:
         :param oracle: A proxy class for interacting with the oracle contract.
     """
+    get_price_view = oracle.get_price
+    view_name = list(filter(lambda view: view.endswith("price"), oracle.views.keys()))[0]
+    if view_name == "view_price":
+        get_price_view = oracle.view_price
+
     storage_type = oracle.storage.context.storage_expr["args"][0]
-    result_type = oracle.get_price.return_ty_expr
-    parameter_type = oracle.get_price.param_ty_expr
-    code = oracle.get_price.code_expr
+    result_type = get_price_view.return_ty_expr
+    parameter_type = get_price_view.param_ty_expr
+    code = get_price_view.code_expr
     result = run_code(
         chain_id        = oracle.context.get_chain_id(),
         parameter       = {"prim": "Unit"},
