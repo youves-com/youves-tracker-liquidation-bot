@@ -14,6 +14,12 @@ pip install -r requirements.txt
 
 The bot configuration is included in file [settings.env](./settings.env). You should adapt the settings to your needs.
 
+The configurations can also be provisioned when [calling the bot script](#run-the-bot):
+
+```sh
+DEBUG=True python liquidation_bot.py
+```
+
 #### **Configuration Values**
 
 | Config Key | Example | Description |

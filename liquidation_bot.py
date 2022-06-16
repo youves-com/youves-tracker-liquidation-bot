@@ -7,6 +7,12 @@ from view_utils import get_oracle_price
 
 PRECISION_FACTOR = 10**12
 PRICE_PRECISION_FACTOR = 10**6
+LIQUIDATION_REWARD_BITSHIFT = 3
+
+def compute_liquidation_tez_amount(token_amount, target_price):
+    token_amount_market_value = token_amount * target_price
+    liquidation_reward = token_amount_market_value >> LIQUIDATION_REWARD_BITSHIFT
+    return (token_amount_market_value + liquidation_reward) / PRICE_PRECISION_FACTOR
 
 class LiquidationBot():
     """
@@ -76,14 +82,16 @@ class LiquidationBot():
                     # Compute the amount to be liquidated
                     liquidation_threshold = int(1.6 * ((minted*compound_interest_rate/PRECISION_FACTOR) - (balance/3*(PRECISION_FACTOR/oracle_price)))) - PRICE_PRECISION_FACTOR
                     amount_to_liquidate = min(liquidation_threshold, self.token_balance())
-                    tez_to_receive = amount_to_liquidate * (oracle_price / (PRECISION_FACTOR*PRICE_PRECISION_FACTOR))
+                    tez_to_receive = compute_liquidation_tez_amount(amount_to_liquidate, oracle_price)
 
                     if tez_to_receive > self.minimum_reward:
                         try:
-                            self.log(f"Liquidating {vault['key']} with {amount_to_liquidate} receiving {tez_to_receive}.")
-                            self.log(f"---\nBalance before liquidation: {self.client.balance()}")
+                            self.log(f"Liquidating {vault['key']} with {amount_to_liquidate / PRECISION_FACTOR} receiving {tez_to_receive}ꜩ.")
+                            self.log("---")
+                            self.log(f"Balance before liquidation: {self.client.balance()}")
                             self.engine.liquidate(vault_owner=vault['key'], token_amount=amount_to_liquidate).send(min_confirmations=1)
-                            self.log(f"Balance after liquidation: {self.client.balance()}\n---")
+                            self.log(f"Balance after liquidation: {self.client.balance()}")
+                            self.log("---")
                         except Exception as ex:
                             self.log(f"Liquidating failed with: {ex}.")
 
