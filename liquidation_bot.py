@@ -5,6 +5,9 @@ import traceback
 import settings
 from view_utils import get_oracle_price
 
+PRECISION_FACTOR = 10**12
+PRICE_PRECISION_FACTOR = 10**6
+
 class LiquidationBot():
     """
     A bot that verifies if vaults are open to step-ins and liquidates them.
@@ -55,38 +58,32 @@ class LiquidationBot():
             if self.has_new_head():
                 # Fetch the latest price from the oracle
                 oracle_price = self.oracle_price()
-                # Token amount has 12 decimals
-                current_token_balance = self.token.balance_of(
-                    requests = [
-                        {
-                            'owner'     : self.public_key_hash,
-                            'token_id'  : 0
-                        }
-                    ],
-                    callback = None
-                ).callback_view()[0]['balance']-1
-
-                # Compute engine ratio (This will change in engine v3)
-                compound_interest_rate = self.engine.storage['compound_interest_rate']()
-                engine_ratio = (oracle_price * compound_interest_rate / 10**24) * self.emergency_ratio
 
                 for vault in self.vaults():
                     minted = int(vault["value"]["minted"])
                     balance = int(vault["value"]["balance"])
+                    is_being_liquidated = int(vault["value"]["is_being_liquidated"])
+                    compound_interest_rate = self.engine.storage['compound_interest_rate']()
+                    current_token_amount = (minted*compound_interest_rate) / PRECISION_FACTOR
 
-                    # Ratio not reached
-                    if (minted <= 0 or float(balance / minted) > engine_ratio):
+                    # (This may change in engine v3)
+                    #
+                    # Skip if emergency ratio has not been reached
+                    # and if vault is not being liquidated
+                    if (not is_being_liquidated and balance * PRICE_PRECISION_FACTOR < current_token_amount*oracle_price*self.emergency_ratio):
                         continue
 
                     # Compute the amount to be liquidated
-                    liquidation_threshold = int(1.6 * ((minted*compound_interest_rate/10**12) - (balance/3*(10**12/oracle_price)))) - 10**6
-                    amount_to_liquidate = min(liquidation_threshold, current_token_balance)
-                    mutez_to_receive = amount_to_liquidate * (oracle_price / (10**18))
+                    liquidation_threshold = int(1.6 * ((minted*compound_interest_rate/PRECISION_FACTOR) - (balance/3*(PRECISION_FACTOR/oracle_price)))) - PRICE_PRECISION_FACTOR
+                    amount_to_liquidate = min(liquidation_threshold, self.token_balance())
+                    tez_to_receive = amount_to_liquidate * (oracle_price / (PRECISION_FACTOR*PRICE_PRECISION_FACTOR))
 
-                    if mutez_to_receive > self.minimum_reward:
+                    if tez_to_receive > self.minimum_reward:
                         try:
-                            self.log(f"Liquidating {vault['key']} with {amount_to_liquidate} receiving {mutez_to_receive}.")
+                            self.log(f"Liquidating {vault['key']} with {amount_to_liquidate} receiving {tez_to_receive}.")
+                            self.log(f"---\nBalance before liquidation: {self.client.balance()}")
                             self.engine.liquidate(vault_owner=vault['key'], token_amount=amount_to_liquidate).send(min_confirmations=1)
+                            self.log(f"Balance after liquidation: {self.client.balance()}\n---")
                         except Exception as ex:
                             self.log(f"Liquidating failed with: {ex}.")
 
@@ -104,6 +101,20 @@ class LiquidationBot():
         """
         vaults = requests.get(f"{self.tzkt_endpoint}/contracts/{self.engine.address}/bigmaps/vault_contexts/keys?limit=10000")
         return vaults.json()
+
+    def token_balance(self):
+        """
+        Get the current token amount owned by this account.
+        """
+        return self.token.balance_of(
+            requests = [
+                {
+                    'owner'     : self.public_key_hash,
+                    'token_id'  : 0
+                }
+            ],
+            callback = None
+        ).callback_view()[0]['balance']
 
     def oracle_price(self) -> int:
         """
