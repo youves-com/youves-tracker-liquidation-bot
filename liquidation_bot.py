@@ -74,7 +74,6 @@ class LiquidationBot():
                     if (minted <= 0 or float(balance / minted) > engine_ratio):
                         continue
 
-                    oracle_price = self.oracle_price()
                     amount_to_liquidate = min(int(1.6 * ((minted*self.engine.storage['compound_interest_rate']()/10**12) - (balance/3*(10**12/oracle_price)))) - 10**6, current_token_balance)
                     mutez_to_receive = amount_to_liquidate * (oracle_price / (10**18))
 
@@ -85,6 +84,7 @@ class LiquidationBot():
                         except Exception as ex:
                             self.log(f"Liquidating failed with: {ex}.")
 
+                # Set a new high water mark
                 self.previous_now = self.now()
         except Exception as ex:
             self.log(f"Something went wrong: {ex}.")
