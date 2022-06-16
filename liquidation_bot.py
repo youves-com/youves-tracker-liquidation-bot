@@ -8,11 +8,6 @@ from view_utils import get_oracle_price
 PRICE_PRECISION_FACTOR = 10**6
 LIQUIDATION_REWARD_BITSHIFT = 3
 
-def compute_liquidation_tez_amount(token_amount, target_price):
-    token_amount_market_value = token_amount * target_price
-    liquidation_reward = token_amount_market_value >> LIQUIDATION_REWARD_BITSHIFT
-    return (token_amount_market_value + liquidation_reward) / PRICE_PRECISION_FACTOR
-
 class LiquidationBot():
     """
     A bot that verifies if vaults are open to step-ins and liquidates them.
@@ -61,7 +56,6 @@ class LiquidationBot():
         """
         Check and liquidate vaults that are open to step in.
         """
-        self.log("---")
         try:
             if self.has_new_head():
                 # Fetch the latest price from the oracle
@@ -70,32 +64,27 @@ class LiquidationBot():
                 for vault in self.vaults():
                     minted = int(vault["value"]["minted"])
                     balance = int(vault["value"]["balance"])
-                    is_being_liquidated = int(vault["value"]["is_being_liquidated"])
+                    is_being_liquidated = vault["value"]["is_being_liquidated"]
                     compound_interest_rate = self.engine.storage['compound_interest_rate']()
-                    current_token_amount = (minted*compound_interest_rate) / self.token_precison_factor
 
-                    # (This may change in engine v3)
-                    #
+                    # Compute engine ratio (This will change in engine v3)
+                    engine_ratio = (oracle_price * compound_interest_rate / 10**24) * self.emergency_ratio
                     # Skip if emergency ratio has not been reached
                     # and if vault is not being liquidated
-                    if (not is_being_liquidated and balance * PRICE_PRECISION_FACTOR < current_token_amount*oracle_price*self.emergency_ratio):
+                    if (not is_being_liquidated and (minted == 0 or float(balance / minted) > engine_ratio)):
                         continue
 
                     # Compute the amount to be liquidated
                     liquidation_threshold = int(1.6 * ((minted*compound_interest_rate/self.token_precison_factor) - (balance/3*(self.token_precison_factor/oracle_price)))) - PRICE_PRECISION_FACTOR
                     amount_to_liquidate = min(liquidation_threshold, self.token_balance())
-                    tez_to_receive = compute_liquidation_tez_amount(amount_to_liquidate, oracle_price)
+                    tez_to_receive = self.liquidation_reward_in_tez(amount_to_liquidate, oracle_price)
 
                     if tez_to_receive > self.minimum_reward:
-                        try:
-                            self.log(f"Liquidating {vault['key']}")
-                            self.log(f"Amount being liquidated: {amount_to_liquidate / self.token_precison_factor}{self.token_metadata.symbol}")
-                            self.log(f"Liquidation reward: {tez_to_receive}ꜩ")
-                            self.log(f"Balance before liquidation: {self.client.balance()}")
-                            self.engine.liquidate(vault_owner=vault['key'], token_amount=amount_to_liquidate).send(min_confirmations=1)
-                            self.log(f"Balance after liquidation: {self.client.balance()}")
-                        except Exception as ex:
-                            self.log(f"Liquidating failed with: {ex}.")
+                        print()
+                        self.log(f"Liquidating {vault['key']}")
+                        self.log(f"Amount being liquidated: {amount_to_liquidate / self.token_precison_factor} {self.token_metadata.symbol}")
+                        self.log(f"Liquidation reward: {tez_to_receive} ꜩ")
+                        self.liquidate_vault(vault["key"], amount_to_liquidate)
 
                 # Set a new high water mark
                 self.previous_now = self.now()
@@ -112,6 +101,25 @@ class LiquidationBot():
         vaults = requests.get(f"{self.tzkt_endpoint}/contracts/{self.engine.address}/bigmaps/vault_contexts/keys?limit=10000")
         return vaults.json()
 
+    def liquidation_reward_in_tez(self, token_amount, target_price):
+        """
+        Compute liquidation reward.
+        """
+        token_amount_market_value = token_amount * target_price
+        liquidation_reward = token_amount_market_value >> LIQUIDATION_REWARD_BITSHIFT
+        return ((token_amount_market_value + liquidation_reward) // self.token_precison_factor) / PRICE_PRECISION_FACTOR
+
+    def liquidate_vault(self, vault_owner, amount_to_liquidate):
+        """
+        Perform a liquidation on a vault.
+        """
+        try:
+            self.log(f"Balance before liquidation: {self.client.balance()}")
+            self.engine.liquidate(vault_owner=vault_owner, token_amount=amount_to_liquidate).send(min_confirmations=1)
+            self.log(f"Balance after liquidation: {self.client.balance()}")
+        except Exception as ex:
+            self.log(f"Liquidating failed with: {ex}.")
+
     def token_balance(self):
         """
         Get the current token amount owned by this account.
@@ -124,7 +132,7 @@ class LiquidationBot():
                 }
             ],
             callback = None
-        ).callback_view()[0]['balance']
+        ).callback_view()[0]['balance']-1
 
     def oracle_price(self) -> int:
         """
@@ -163,7 +171,7 @@ bot = LiquidationBot(
     emergency_ratio = settings.EMERGENCY_RATIO,
     minimum_reward  = settings.MINIMUM_REWARD
 )
+
+bot.log("Bot Initialized...")
 while True:
     bot.run()
-    # Wait 10 seconds before each run
-    time.sleep(10)
