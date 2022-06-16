@@ -26,6 +26,7 @@ class LiquidationBot():
         :param tzkt_endpoint: TZKT API uri.
         :param engine_address: Address of the engine contract.
         :param oracle_address: Address of the price oracle contract.
+        :param token_decimals: Position of the decimal point in token balances.
         :param emergency_ratio: Emergency collateral ratio.
         :param minimum_reward: Minimum expected reward from liquidations.
     """
@@ -36,6 +37,7 @@ class LiquidationBot():
         tzkt_endpoint: str,
         engine_address: str,
         oracle_address: str,
+        token_decimals: str,
         emergency_ratio: float,
         minimum_reward: float
     ):
@@ -53,8 +55,7 @@ class LiquidationBot():
         self.token = self.client.contract(self.engine.storage["token_contract"]())
         self.token_id = self.engine.storage["token_id"]()
 
-        self.token_metadata = self.token._get_token_metadata_from_storage(self.token_id)
-        self.token_precison_factor = 10 ** int(self.token_metadata.decimals)
+        self.token_precison_factor = 10 ** int(token_decimals)
 
         # Set initial block timestamp to 0.
         # It will be updated inside the `run` method.
@@ -92,8 +93,8 @@ class LiquidationBot():
                     if tez_to_receive > self.minimum_reward:
                         print()
                         self.log(f"Liquidating {vault['key']}")
-                        self.log(f"Amount being liquidated: {amount_to_liquidate / self.token_precison_factor} {self.token_metadata.symbol}")
-                        self.log(f"Liquidation reward: {tez_to_receive} ꜩ")
+                        self.log(f"Amount being liquidated: {amount_to_liquidate / self.token_precison_factor}")
+                        self.log(f"Liquidation reward: {tez_to_receive}")
                         self.liquidate_vault(vault["key"], amount_to_liquidate)
                         print()
                         did_any_liquidation = True
@@ -174,19 +175,20 @@ class LiquidationBot():
         Attributes:
             :param message: Message to log.
         """
-        logger.info("%s:%s\t%s", self.engine.address, self.token_metadata.symbol, message)
+        logger.info("%s\t%s", self.engine.address, message)
 
 
-bot = LiquidationBot(
+bot__uUSD_tez = LiquidationBot(
     tzkt_endpoint   = settings.TZKT_ENDPOINT,
     rpc_endpoint    = settings.RPC_ENDPOINT,
     private_key     = settings.PRIVATE_KEY,
     engine_address  = settings.ENGINE_ADDRESS,
     oracle_address  = settings.TARGET_PRICE_ORACLE_ADDRESS,
+    token_decimals  = settings.TOKEN_DECIMALS,
     emergency_ratio = settings.EMERGENCY_RATIO,
     minimum_reward  = settings.MINIMUM_REWARD
 )
 
-bot.log("Bot Initialized...")
+bot__uUSD_tez.log("Bot Initialized...")
 while True:
-    bot.run()
+    bot__uUSD_tez.run()
