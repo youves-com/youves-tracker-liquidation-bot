@@ -5,7 +5,6 @@ import traceback
 import settings
 from view_utils import get_oracle_price
 
-PRECISION_FACTOR = 10**12
 PRICE_PRECISION_FACTOR = 10**6
 LIQUIDATION_REWARD_BITSHIFT = 3
 
@@ -24,7 +23,6 @@ class LiquidationBot():
         :param tzkt_endpoint: TZKT API uri.
         :param engine_address: Address of the engine contract.
         :param oracle_address: Address of the price oracle contract.
-        :param token_address: Address of the token contract.
         :param emergency_ratio: Emergency collateral ratio.
         :param minimum_reward: Minimum expected reward from liquidations.
     """
@@ -35,7 +33,6 @@ class LiquidationBot():
         tzkt_endpoint: str,
         engine_address: str,
         oracle_address: str,
-        token_address: str,
         emergency_ratio: float,
         minimum_reward: float
     ):
@@ -50,7 +47,11 @@ class LiquidationBot():
         # Create interfaces to interact with contracts
         self.engine = self.client.contract(engine_address)
         self.oracle = self.client.contract(oracle_address)
-        self.token = self.client.contract(token_address)
+        self.token = self.client.contract(self.engine.storage["token_contract"]())
+        self.token_id = self.engine.storage["token_id"]()
+
+        self.token_metadata = self.token._get_token_metadata_from_storage(self.token_id)
+        self.token_precison_factor = 10 ** int(self.token_metadata.decimals)
 
         # Set initial block timestamp to 0.
         # It will be updated inside the `run` method.
@@ -60,6 +61,7 @@ class LiquidationBot():
         """
         Check and liquidate vaults that are open to step in.
         """
+        self.log("---")
         try:
             if self.has_new_head():
                 # Fetch the latest price from the oracle
@@ -70,7 +72,7 @@ class LiquidationBot():
                     balance = int(vault["value"]["balance"])
                     is_being_liquidated = int(vault["value"]["is_being_liquidated"])
                     compound_interest_rate = self.engine.storage['compound_interest_rate']()
-                    current_token_amount = (minted*compound_interest_rate) / PRECISION_FACTOR
+                    current_token_amount = (minted*compound_interest_rate) / self.token_precison_factor
 
                     # (This may change in engine v3)
                     #
@@ -80,18 +82,18 @@ class LiquidationBot():
                         continue
 
                     # Compute the amount to be liquidated
-                    liquidation_threshold = int(1.6 * ((minted*compound_interest_rate/PRECISION_FACTOR) - (balance/3*(PRECISION_FACTOR/oracle_price)))) - PRICE_PRECISION_FACTOR
+                    liquidation_threshold = int(1.6 * ((minted*compound_interest_rate/self.token_precison_factor) - (balance/3*(self.token_precison_factor/oracle_price)))) - PRICE_PRECISION_FACTOR
                     amount_to_liquidate = min(liquidation_threshold, self.token_balance())
                     tez_to_receive = compute_liquidation_tez_amount(amount_to_liquidate, oracle_price)
 
                     if tez_to_receive > self.minimum_reward:
                         try:
-                            self.log(f"Liquidating {vault['key']} with {amount_to_liquidate / PRECISION_FACTOR} receiving {tez_to_receive}ꜩ.")
-                            self.log("---")
+                            self.log(f"Liquidating {vault['key']}")
+                            self.log(f"Amount being liquidated: {amount_to_liquidate / self.token_precison_factor}{self.token_metadata.symbol}")
+                            self.log(f"Liquidation reward: {tez_to_receive}ꜩ")
                             self.log(f"Balance before liquidation: {self.client.balance()}")
                             self.engine.liquidate(vault_owner=vault['key'], token_amount=amount_to_liquidate).send(min_confirmations=1)
                             self.log(f"Balance after liquidation: {self.client.balance()}")
-                            self.log("---")
                         except Exception as ex:
                             self.log(f"Liquidating failed with: {ex}.")
 
@@ -118,7 +120,7 @@ class LiquidationBot():
             requests = [
                 {
                     'owner'     : self.public_key_hash,
-                    'token_id'  : 0
+                    'token_id'  : self.token_id
                 }
             ],
             callback = None
@@ -158,7 +160,6 @@ bot = LiquidationBot(
     private_key     = settings.PRIVATE_KEY,
     engine_address  = settings.ENGINE_ADDRESS,
     oracle_address  = settings.TARGET_PRICE_ORACLE_ADDRESS,
-    token_address   = settings.TOKEN_ADDRESS,
     emergency_ratio = settings.EMERGENCY_RATIO,
     minimum_reward  = settings.MINIMUM_REWARD
 )
