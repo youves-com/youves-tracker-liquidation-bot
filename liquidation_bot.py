@@ -7,12 +7,12 @@ from view_utils import get_oracle_price
 
 class LiquidationBot():
     """
-    A bot that automates the tasks necessary to verify trigger conditions
-    and interact directly with the smart contracts.
+    A bot that verifies if vaults are open to step-ins and liquidates them.
 
     Attributes:
         :param rpc_endpoint: RPC node uri.
         :param private_key: A private key to sign bot operations.
+        :param tzkt_endpoint: TZKT API uri.
         :param engine_address: Address of the engine contract.
         :param oracle_address: Address of the price oracle contract.
         :param token_address: Address of the token contract.
@@ -20,9 +20,9 @@ class LiquidationBot():
     """
     def __init__(
         self,
-        tzkt_endpoint: str,
         rpc_endpoint: str,
         private_key: str,
+        tzkt_endpoint: str,
         engine_address: str,
         oracle_address: str,
         token_address: str,
@@ -35,10 +35,13 @@ class LiquidationBot():
         self.client = pytezos.using(shell=rpc_endpoint, key=Key.from_encoded_key(key=private_key))
         self.public_key_hash = self.client.key.public_key_hash()
 
+        # Create interfaces to interact with contracts
         self.engine = self.client.contract(engine_address)
         self.oracle = self.client.contract(oracle_address)
         self.token = self.client.contract(token_address)
 
+        # Set initial block timestamp to 0.
+        # It will be updated inside the `run` method.
         self.previous_now = 0
 
     def run(self) -> None:
@@ -49,8 +52,6 @@ class LiquidationBot():
             if self.has_new_head():
                 # Fetch the latest price from the oracle
                 oracle_price = self.oracle_price()
-                # compound_interest_rate = self.engine.storage['compound_interest_rate']()
-                # ratio = (oracle_price * compound_interest_rate / 10**24) * self.emergency_ratio
                 current_token_balance = self.token.balance_of(
                     requests = [
                         {
@@ -60,27 +61,35 @@ class LiquidationBot():
                     ],
                     callback = None
                 ).callback_view()[0]['balance']-1
+
+                # Compute engine ratio
+                compound_interest_rate = self.engine.storage['compound_interest_rate']()
+                engine_ratio = (oracle_price * compound_interest_rate / 10**24) * self.emergency_ratio
+
                 for vault in self.vaults():
                     minted = int(vault["value"]["minted"])
                     balance = int(vault["value"]["balance"])
+
+                    # Ratio not reached
+                    if (minted <= 0 or float(balance / minted) > engine_ratio):
+                        continue
+
                     oracle_price = self.oracle_price()
                     amount_to_liquidate = min(int(1.6 * ((minted*self.engine.storage['compound_interest_rate']()/10**12) - (balance/3*(10**12/oracle_price)))) - 10**6, current_token_balance)
-                    mutez_received = amount_to_liquidate*oracle_price/10**18
+                    mutez_to_receive = amount_to_liquidate * (oracle_price / (10**18))
 
-                    if mutez_received > 1:
+                    if mutez_to_receive > 1:
                         try:
-                            self.log(vault)
-                            self.log(f"Liquidating {vault['key']} with {amount_to_liquidate} receiving {mutez_received}.")
+                            self.log(f"Liquidating {vault['key']} with {amount_to_liquidate} receiving {mutez_to_receive}.")
                             self.engine.liquidate(vault_owner=vault['key'], token_amount=amount_to_liquidate).send(min_confirmations=1)
-                        except Exception as e:
-                            self.log(f"failed with: {e}")
-
-                self.log(f"nothing to do for {self.public_key_hash}...")
+                        except Exception as ex:
+                            self.log(f"Liquidating failed with: {ex}.")
 
                 self.previous_now = self.now()
-        except Exception as e:
-            traceback.print_exc()
-            self.log(f"something went wrong: {e}")
+        except Exception as ex:
+            self.log(f"Something went wrong: {ex}.")
+            if settings.DEBUG:
+                traceback.print_exc()
 
     def vaults(self):
         """
@@ -127,5 +136,6 @@ bot = LiquidationBot(
     emergency_ratio = settings.EMERGENCY_RATIO
 )
 while True:
-    time.sleep(10)
     bot.run()
+    # Wait 10 seconds before each run
+    time.sleep(10)
