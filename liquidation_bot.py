@@ -122,7 +122,7 @@ class LiquidationBot():
                         else:
                             self.error(f"Liquidating failed with: {err}.")
                     else:
-                        self.debug(f"Ignoring liquidation, amount ({tez_to_receive:.5f} ꜩ) it too low...")
+                        self.debug(f"Ignoring liquidation, reward ({tez_to_receive:.5f} ꜩ) is too low...")
 
                 if not did_any_liquidation:
                     self.debug("Nothing to do...")
