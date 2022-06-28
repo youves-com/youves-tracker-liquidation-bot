@@ -44,7 +44,7 @@ python liquidation_bot.py
 ## Supported Youves Engines
 
 | Engine Address | Token Ticker | Collateral Ticker | Emergency Collateral Ratio |
-|------------|:-------:|:-------:|:-------:|:-------|
+|------------|:-------:|:-------:|:-------|
 | **KT1FFE2LC5JpVakVjHm5mM36QVp2p3ZzH4hH** | uUSD | XTZ | 200% |
 | **KT1LQcsXGpmLXnwrfftuQdCLNvLRLUAuNPCV** | uDEFI | XTZ | 200% |
 | **KT1VjQoL5QvyZtm9m1voQKNTNcQLi5QiGsRZ** | uBTC | XTZ | 200% |
