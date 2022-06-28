@@ -1,4 +1,4 @@
-# Liquidation Bot
+# Liquidation Bot (Tracker V3)
 
 The [youves](https://youves.com) frontend does not support manual step-in directly. Consequently, manual step-ins have to be done through a block explorer, such as Better Call Dev (BCD), or with a bot that triggers when certain conditions are met and interacts directly with the smart contracts.
 
@@ -43,8 +43,8 @@ python liquidation_bot.py
 
 ## Supported Youves Engines
 
-| Engine Address | Token Ticker | Collateral Ticker | Target Collateral Ratio | Emergency Collateral Ratio |
+| Engine Address | Token Ticker | Collateral Ticker | Emergency Collateral Ratio |
 |------------|:-------:|:-------:|:-------:|:-------|
-| **KT1FFE2LC5JpVakVjHm5mM36QVp2p3ZzH4hH** | uUSD | XTZ | 300% | 200% |
-| **KT1LQcsXGpmLXnwrfftuQdCLNvLRLUAuNPCV** | uDEFI | XTZ | 300% | 200% |
-| **KT1VjQoL5QvyZtm9m1voQKNTNcQLi5QiGsRZ** | uBTC | XTZ | 300% | 200% |
+| **KT1FFE2LC5JpVakVjHm5mM36QVp2p3ZzH4hH** | uUSD | XTZ | 200% |
+| **KT1LQcsXGpmLXnwrfftuQdCLNvLRLUAuNPCV** | uDEFI | XTZ | 200% |
+| **KT1VjQoL5QvyZtm9m1voQKNTNcQLi5QiGsRZ** | uBTC | XTZ | 200% |
