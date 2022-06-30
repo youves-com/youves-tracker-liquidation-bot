@@ -27,12 +27,10 @@ LOG_LEVEL=20 python liquidation_bot.py
 | **`RPC_ENDPOINT`** | *`https://mainnet.api.tez.ie`* | RPC endpoint to be used by the bot. |
 | **`PRIVATE_KEY`** | *`edsk...`*                      | Private key to be used to sign the liquidation operations. |
 | **`TZKT_ENDPOINT`** | *`https://api.tzkt.io/v1`* | TZKT API endpoint to be used by the bot. |
-| **`ENGINE_ADDRESS`** | *`KT1FFE2LC5JpVakVjHm5mM36QVp2p3ZzH4hH`* | Address of the engine contract. |
-| **`TARGET_PRICE_ORACLE_ADDRESS`** | *`KT1C5zJ62ZY3sm88XSznawP9ExHogzGUuqDr`* | Address of the price oracle contract. |
-| **`COLLATERAL_TOKEN_DECIMALS`** | *`6`* | Position of the decimal point in collateral token balances. |
-| **`TOKEN_DECIMALS`** | *`12`* | Position of the decimal point in token balances. |
-| **`EMERGENCY_RATIO`** | *`200`* | [Emergency collateral ratio](https://docs.youves.com/syntheticAssets/stableTokens/collateralManagement/Collateral-Management-Details). |
-| **`MINIMUM_REWARD`** | *`0.1`* | Minimum expected reward from liquidations (in ꜩ). |
+| **`COLLATERAL_TOKEN`** | *`xtz`* | Options: `xtz`, `uUSD`, `uDEFI`, `uBTC`, `tzBTC`, `tzBTC_LB` |
+| **`SYNTHETIC_ASSET_TOKEN`** | *`uUSD`* | Options: `uUSD`, `uDEFI`, `uBTC` |
+| **`MINIMUM_PAYOUT`** | *`1000`* | Minimum expected payout from liquidations (In collateral token units). |
+| **`STEP_IN_RATIO`** | *`1.6`* | [See collateral management details](https://docs.youves.com/syntheticAssets/stableTokens/collateralManagement/Collateral-Management-Details) |
 | **`LOG_LEVEL`** | *`10`*                      | ERROR = 40, INFO = 20, DEBUG = 10 |
 
 ## Run the bot
@@ -41,10 +39,17 @@ LOG_LEVEL=20 python liquidation_bot.py
 python liquidation_bot.py
 ```
 
-## Supported Youves Engines
+## Supported engines
 
 | Engine Address | Token Ticker | Collateral Ticker | Emergency Collateral Ratio |
 |------------|:-------:|:-------:|:-------|
-| **KT1FFE2LC5JpVakVjHm5mM36QVp2p3ZzH4hH** | uUSD | XTZ | 200% |
-| **KT1LQcsXGpmLXnwrfftuQdCLNvLRLUAuNPCV** | uDEFI | XTZ | 200% |
-| **KT1VjQoL5QvyZtm9m1voQKNTNcQLi5QiGsRZ** | uBTC | XTZ | 200% |
+| **KT1FFE2LC5JpVakVjHm5mM36QVp2p3ZzH4hH** | `uUSD` | `xtz` | 200% |
+| **KT1HxgqnVjGy7KsSUTEsQ6LgpD5iKSGu7QpA** | `uUSD` | `tzBTC` | 200% |
+| **KT1FzcHaNhmpdYPNTgfb8frYXx7B5pvVyowu** | `uUSD` | `tzBTC_LB` | 200% |
+||||
+| **KT1LQcsXGpmLXnwrfftuQdCLNvLRLUAuNPCV** | `uDEFI` | `xtz` | 200% |
+| **KT1B2GSe47rcMCZTRk294havTpyJ36JbgdeB** | `uDEFI` | `uUSD` | 200% |
+| **KT1E45AvpSr7Basw2bee3g8ri2LK2C2SV2XG** | `uDEFI` | `tzBTC_LB` | 200% |
+||||
+| **KT1VjQoL5QvyZtm9m1voQKNTNcQLi5QiGsRZ** | `uBTC` | `xtz` | 200% |
+| **KT1NFWUqr9xNvVsz2LXCPef1eRcexJz5Q2MH** | `uBTC` | `tzBTC_LB` | 200% |
