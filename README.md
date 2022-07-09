@@ -4,6 +4,13 @@ The [youves](https://youves.com) frontend does not support manual step-in direct
 
 This repository contains a bot implementation for automating the liquidation process.
 
+## Disclaimer
+
+- We want to stress that any kind of **automated trading can be tricky and can quickly lead to significant losses**. Make sure you really understand what you are doing, do some testing with small amounts and be extra careful.
+- While we were careful to avoid any errors when writing the code and we did some testing, consider this repository as a source for education and illustration purposes only. There is **no guarantee on the correctness** of the code, use at your own risk. The creators of this code cannot be held responsible for any potential damages. 
+- The code is set up to work with the current v1 and v2 engines. It will also work with the v3 engines, but some values for the smart contract engine addresses, emergency collateral ratios, and the step-in ratios will likely have to be changed.
+
+
 ## Install dependencies
 
 ```sh
