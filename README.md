@@ -34,7 +34,7 @@ LOG_LEVEL=20 python liquidation_bot.py
 | **`RPC_ENDPOINT`** | *`https://mainnet.api.tez.ie`* | RPC endpoint to be used by the bot. |
 | **`PRIVATE_KEY`** | *`edsk...`*                      | Private key to be used to sign the liquidation operations. |
 | **`TZKT_ENDPOINT`** | *`https://api.tzkt.io/v1`* | TZKT API endpoint to be used by the bot. |
-| **`COLLATERAL_TOKEN`** | *`xtz`* | Options: `xtz`, `uUSD`, `uDEFI`, `uBTC`, `tzBTC`, `tzBTC_LB` |
+| **`COLLATERAL_TOKEN`** | *`xtz`* | Options: `xtz`, `uUSD`, `tzBTC`, `tzBTC_LB` |
 | **`SYNTHETIC_ASSET_TOKEN`** | *`uUSD`* | Options: `uUSD`, `uDEFI`, `uBTC` |
 | **`MINIMUM_PAYOUT`** | *`1000`* | Minimum expected payout from liquidations (In collateral token units). |
 | **`STEP_IN_RATIO`** | *`1.6`* | [See collateral management details](https://docs.youves.com/syntheticAssets/stableTokens/collateralManagement/Collateral-Management-Details) |
