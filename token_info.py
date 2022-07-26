@@ -4,7 +4,7 @@ class Token:
     uDEFI       = "uDEFI"
     uBTC        = "uBTC"
     tzBTC       = "tzBTC"
-    tzBTC_LB    = "tzBTC_LB"
+    SIRS        = "SIRS"
 
 vault_engines = {
     Token.uUSD: {
@@ -18,7 +18,7 @@ vault_engines = {
             "target_oracle_decimals"        : 12,
             "min_token_amount_treshold"     : 1
         },
-        Token.tzBTC_LB: {
+        Token.SIRS: {
             "engine_address"               : "KT1FzcHaNhmpdYPNTgfb8frYXx7B5pvVyowu",
             "target_oracle_decimals"       : 6,
             "min_token_amount_treshold"    : 1
@@ -35,7 +35,7 @@ vault_engines = {
             "target_oracle_decimals"        : 6,
             "min_token_amount_treshold"     : 1000
         },
-        Token.tzBTC_LB: {
+        Token.SIRS: {
             "engine_address"                : "KT1E45AvpSr7Basw2bee3g8ri2LK2C2SV2XG",
             "target_oracle_decimals"        : 6,
             "min_token_amount_treshold"     : 1
@@ -47,7 +47,7 @@ vault_engines = {
             "target_oracle_decimals"        : 6,
             "min_token_amount_treshold"     : 1000,
         },
-        Token.tzBTC_LB: {
+        Token.SIRS: {
             "engine_address"                : "KT1NFWUqr9xNvVsz2LXCPef1eRcexJz5Q2MH",
             "target_oracle_decimals"        : 6,
             "min_token_amount_treshold"     : 1
@@ -61,7 +61,7 @@ decimals_lookup = {
     Token.uDEFI     : 12,
     Token.uBTC      : 12,
     Token.tzBTC     : 8,
-    Token.tzBTC_LB  : 0
+    Token.SIRS      : 0
 }
 
 def get_decimals_for_ratio(collateral_token: Token, syntetic_token_decimals):
@@ -69,7 +69,7 @@ def get_decimals_for_ratio(collateral_token: Token, syntetic_token_decimals):
         return 10
     elif collateral_token == Token.xtz:
         return syntetic_token_decimals
-    elif collateral_token == Token.tzBTC_LB:
+    elif collateral_token == Token.SIRS:
         return 6 + syntetic_token_decimals
 
     return 6 # default
